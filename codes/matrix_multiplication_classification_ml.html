@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Matrix multiplication in classification training | Outspoken Market</title>
+  <style>
+    :root{
+      --bg:#0f172a; --panel:#111827; --soft:#1f2937; --text:#e5e7eb; --muted:#94a3b8;
+      --accent:#38bdf8; --good:#22c55e; --bad:#f97316; --line:#334155; --pink:#f472b6; --yellow:#facc15;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#020617 0%, #0f172a 100%);color:var(--text)}
+    .wrap{max-width:1200px;margin:0 auto;padding:24px}
+    .hero,.panel{background:rgba(17,24,39,.92);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 12px 30px rgba(0,0,0,.25)}
+    .hero{margin-bottom:20px}
+    h1,h2,h3{margin:0 0 10px}
+    h1{font-size:34px} h2{font-size:24px}
+    p{line-height:1.55} .muted{color:var(--muted)}
+    .grid{display:grid;grid-template-columns:360px 1fr;gap:20px}
+    @media (max-width:980px){.grid{grid-template-columns:1fr}}
+    .controls .group{margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid rgba(148,163,184,.15)}
+    .controls .group:last-child{border-bottom:none}
+    label{display:block;font-size:14px;margin:10px 0 6px;color:var(--muted)}
+    input[type=range]{width:100%;accent-color:var(--accent)}
+    .val{display:inline-block;min-width:48px;text-align:right;color:var(--accent);font-weight:bold;margin-left:8px}
+    .matrix-boxes{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:12px}
+    @media (max-width:980px){.matrix-boxes{grid-template-columns:repeat(3,1fr)}}
+    @media (max-width:620px){.matrix-boxes{grid-template-columns:repeat(2,1fr)}}
+    .box,.step,.kpi{background:var(--soft);border:1px solid var(--line);border-radius:16px;padding:14px}
+    .matrix,.equation{font-family:"Courier New",monospace;background:#0b1220;border:1px solid var(--line);border-radius:14px;padding:12px;white-space:pre;overflow:auto}
+    .matrix{font-size:21px;line-height:1.5;transition:transform .18s ease, box-shadow .18s ease}
+    .pulse{transform:scale(1.02);box-shadow:0 0 0 2px rgba(56,189,248,.18)}
+    .equation{font-size:18px;line-height:1.6;margin-top:14px}
+    .stepcards{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:14px}
+    @media (max-width:980px){.stepcards{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:620px){.stepcards{grid-template-columns:1fr}}
+    .step.active{border-color:rgba(56,189,248,.6);box-shadow:0 0 0 2px rgba(56,189,248,.15) inset}
+    .num{width:28px;height:28px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:rgba(56,189,248,.15);color:var(--accent);font-weight:bold;margin-bottom:8px}
+    .pill{display:inline-block;border-radius:999px;padding:6px 10px;font-size:12px;margin:4px 6px 0 0;border:1px solid var(--line);background:#0b1220;color:var(--muted)}
+    canvas{width:100%;max-width:100%;background:#09101d;border:1px solid var(--line);border-radius:18px;display:block}
+    .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-top:14px}
+    @media (max-width:980px){.kpis{grid-template-columns:repeat(3,1fr)}}
+    @media (max-width:620px){.kpis{grid-template-columns:repeat(2,1fr)}}
+    .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+    .value{font-size:24px;font-weight:bold;margin-top:6px}
+    .footer{margin-top:18px;text-align:center;color:var(--muted);font-size:14px}
+    button{appearance:none;border:none;background:var(--accent);color:#06263a;font-weight:bold;border-radius:12px;padding:10px 14px;cursor:pointer;margin-right:8px;margin-top:8px}
+    button.secondary{background:#1e293b;color:var(--text);border:1px solid var(--line)}
+    .legend{display:flex;gap:18px;flex-wrap:wrap;color:var(--muted);font-size:14px;margin-top:10px}
+    .dot{display:inline-block;width:10px;height:10px;border-radius:999px;margin-right:6px;vertical-align:middle}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <section class="hero">
+    <h1>Matrix multiplication in classification training</h1>
+    <p>Now the problem is binary classification. The structure is still the same: the input matrix <strong>X</strong> is multiplied by the weight matrix <strong>W</strong>. That produces a score, also called a logit: <strong>z = XW</strong>. Then we pass that score through the sigmoid function to get probabilities: <strong>p = σ(z)</strong>.</p>
+    <p class="muted">So the matrix multiplication still drives the forward pass. The only difference is that, instead of predicting a continuous number directly, the model predicts the probability that each example belongs to class 1. Then we compare those probabilities with the target labels, compute the loss, compute the gradient, and update the weights.</p>
+    <div class="pill">Outspoken Market</div><div class="pill">om-qs.com</div><div class="pill">Binary classification</div>
+  </section>
+
+  <div class="grid">
+    <aside class="panel controls">
+      <h2>interactive controls</h2>
+
+      <div class="group">
+        <h3>dataset matrix X</h3>
+        <p class="muted">Each row is one training example, each column is one feature.</p>
+        <label>x₁ feature 1 <span class="val" id="x11v"></span></label><input id="x11" type="range" min="-3" max="3" step="0.1" value="1.0">
+        <label>x₁ feature 2 <span class="val" id="x12v"></span></label><input id="x12" type="range" min="-3" max="3" step="0.1" value="0.5">
+        <label>x₂ feature 1 <span class="val" id="x21v"></span></label><input id="x21" type="range" min="-3" max="3" step="0.1" value="2.0">
+        <label>x₂ feature 2 <span class="val" id="x22v"></span></label><input id="x22" type="range" min="-3" max="3" step="0.1" value="1.5">
+      </div>
+
+      <div class="group">
+        <h3>class labels y</h3>
+        <p class="muted">Binary targets, 0 or 1.</p>
+        <label>y₁ <span class="val" id="y1v"></span></label><input id="y1" type="range" min="0" max="1" step="1" value="0">
+        <label>y₂ <span class="val" id="y2v"></span></label><input id="y2" type="range" min="0" max="1" step="1" value="1">
+      </div>
+
+      <div class="group">
+        <h3>weight matrix W</h3>
+        <p class="muted">These parameters rotate the decision boundary and change the probabilities.</p>
+        <label>w₁ <span class="val" id="w1v"></span></label><input id="w1" type="range" min="-4" max="4" step="0.1" value="0.4">
+        <label>w₂ <span class="val" id="w2v"></span></label><input id="w2" type="range" min="-4" max="4" step="0.1" value="0.7">
+      </div>
+
+      <div class="group">
+        <h3>learning rate</h3>
+        <label>η <span class="val" id="lrv"></span></label><input id="lr" type="range" min="0.01" max="0.5" step="0.01" value="0.10">
+        <button id="stepBtn">Run one gradient step</button>
+        <button id="resetBtn" class="secondary">Reset example</button>
+      </div>
+    </aside>
+
+    <main>
+      <section class="panel">
+        <h2>the training pipeline</h2>
+        <div class="stepcards">
+          <div class="step active" id="step1"><div class="num">1</div><h3>Forward pass</h3><p class="muted">Multiply the batch matrix by the weights: <strong>z = XW</strong></p></div>
+          <div class="step" id="step2"><div class="num">2</div><h3>Probability</h3><p class="muted">Convert logits into probabilities: <strong>p = σ(z)</strong></p></div>
+          <div class="step" id="step3"><div class="num">3</div><h3>Error signal</h3><p class="muted">Compare probabilities with labels: <strong>p - y</strong></p></div>
+          <div class="step" id="step4"><div class="num">4</div><h3>Gradient</h3><p class="muted">For logistic loss, the gradient becomes <strong>Xᵀ(p-y)/n</strong></p></div>
+          <div class="step" id="step5"><div class="num">5</div><h3>Update</h3><p class="muted">Move weights against the gradient: <strong>W ← W - η∇L</strong></p></div>
+        </div>
+
+        <div class="matrix-boxes">
+          <div class="box"><h3>X</h3><div id="Xmat" class="matrix"></div></div>
+          <div class="box"><h3>W</h3><div id="Wmat" class="matrix"></div></div>
+          <div class="box"><h3>z = XW</h3><div id="Zmat" class="matrix"></div></div>
+          <div class="box"><h3>p = σ(z)</h3><div id="Pmat" class="matrix"></div></div>
+          <div class="box"><h3>y</h3><div id="Ymat" class="matrix"></div></div>
+        </div>
+
+        <div class="kpis">
+          <div class="kpi"><div class="label">probability 1</div><div class="value" id="p1"></div></div>
+          <div class="kpi"><div class="label">probability 2</div><div class="value" id="p2"></div></div>
+          <div class="kpi"><div class="label">predicted class 1</div><div class="value" id="c1"></div></div>
+          <div class="kpi"><div class="label">predicted class 2</div><div class="value" id="c2"></div></div>
+          <div class="kpi"><div class="label">log loss</div><div class="value" id="lossVal"></div></div>
+          <div class="kpi"><div class="label">gradient</div><div class="value" id="gvec"></div></div>
+        </div>
+
+        <div class="equation" id="eqs"></div>
+      </section>
+
+      <section class="panel" style="margin-top:20px;">
+        <h2>why matrix multiplication still matters in classification</h2>
+        <p>The points below live in feature space. The orange arrow is the weight vector <strong>W</strong>. The dashed line is the decision boundary, where <strong>z = x · W = 0</strong>. On one side, the model leans toward class 1. On the other side, it leans toward class 0.</p>
+        <p class="muted">The key idea is unchanged: one matrix multiplication processes the whole batch at once. It computes all logits simultaneously, then the sigmoid converts them into probabilities. Training adjusts the same weight vector so the probabilities move closer to the correct labels.</p>
+        <canvas id="plot" width="760" height="520"></canvas>
+        <div class="legend">
+          <div><span class="dot" style="background:#22c55e"></span>label 0 sample</div>
+          <div><span class="dot" style="background:#f472b6"></span>label 1 sample</div>
+          <div><span class="dot" style="background:#f97316"></span>weights W</div>
+          <div><span class="dot" style="background:#38bdf8"></span>gradient ∇L</div>
+        </div>
+        <div class="footer">Outspoken Market | om-qs.com</div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  const ids = ['x11','x12','x21','x22','y1','y2','w1','w2','lr'];
+  const defaults = {x11:1.0,x12:0.5,x21:2.0,x22:1.5,y1:0,y2:1,w1:0.4,w2:0.7,lr:0.10};
+  const els = {}, valEls = {};
+  ids.forEach(id => { els[id] = document.getElementById(id); valEls[id] = document.getElementById(id+'v'); });
+  const canvas = document.getElementById('plot');
+  const ctx = canvas.getContext('2d');
+  const fmt = n => (Math.round(n * 1000) / 1000).toFixed(3);
+
+  function sigmoid(x){ return 1 / (1 + Math.exp(-x)); }
+
+  function getState(){
+    return {
+      X:[[parseFloat(els.x11.value), parseFloat(els.x12.value)],[parseFloat(els.x21.value), parseFloat(els.x22.value)]],
+      y:[[parseFloat(els.y1.value)],[parseFloat(els.y2.value)]],
+      W:[[parseFloat(els.w1.value)],[parseFloat(els.w2.value)]],
+      lr:parseFloat(els.lr.value)
+    };
+  }
+  function mmul(A,B){
+    const rows=A.length, cols=B[0].length, inner=B.length;
+    const out=Array.from({length:rows},()=>Array(cols).fill(0));
+    for(let i=0;i<rows;i++){ for(let j=0;j<cols;j++){ let s=0; for(let k=0;k<inner;k++) s += A[i][k]*B[k][j]; out[i][j]=s; } }
+    return out;
+  }
+  function transpose(A){ return A[0].map((_,j)=>A.map(row=>row[j])); }
+  function sub(A,B){ return A.map((row,i)=>row.map((v,j)=>v-B[i][j])); }
+  function scale(A,s){ return A.map(row=>row.map(v=>v*s)); }
+  function mean(A){ let s=0,c=0; A.forEach(r=>r.forEach(v=>{s+=v; c++;})); return s/c; }
+  function applySigmoid(A){ return A.map(row=>row.map(v=>sigmoid(v))); }
+  function clip(p){ return Math.min(0.999999, Math.max(0.000001, p)); }
+  function logLoss(p, y){
+    const vals = [];
+    for(let i=0;i<p.length;i++){
+      const pi = clip(p[i][0]), yi = y[i][0];
+      vals.push(-(yi*Math.log(pi) + (1-yi)*Math.log(1-pi)));
+    }
+    return vals.reduce((a,b)=>a+b,0) / vals.length;
+  }
+  function gradient(X, pMinusY){ return scale(mmul(transpose(X), pMinusY), 1 / X.length); }
+  function matToStr(A){
+    if(A.length===2 && A[0].length===2){ return `⎡ ${fmt(A[0][0]).padStart(6)}  ${fmt(A[0][1]).padStart(6)} ⎤\n⎣ ${fmt(A[1][0]).padStart(6)}  ${fmt(A[1][1]).padStart(6)} ⎦`; }
+    if(A.length===2 && A[0].length===1){ return `⎡ ${fmt(A[0][0]).padStart(7)} ⎤\n⎣ ${fmt(A[1][0]).padStart(7)} ⎦`; }
+    return JSON.stringify(A);
+  }
+  function pulse(id){
+    const el=document.getElementById(id);
+    el.classList.remove('pulse'); void el.offsetWidth; el.classList.add('pulse');
+    setTimeout(()=>el.classList.remove('pulse'),220);
+  }
+  function setActiveStep(n){ for(let i=1;i<=5;i++) document.getElementById('step'+i).classList.toggle('active', i===n); }
+
+  function drawBackground(sx, sy, maxAbs, W){
+    const nx = W[0][0], ny = W[1][0];
+    for(let py=0; py<canvas.height; py+=8){
+      for(let px=0; px<canvas.width; px+=8){
+        const x = ((px - canvas.width/2) / (canvas.width/2 - 50)) * maxAbs;
+        const y = -((py - canvas.height/2) / (canvas.height/2 - 50)) * maxAbs;
+        const z = x*nx + y*ny;
+        const p = sigmoid(z);
+        const r = Math.round(20 + p*60);
+        const g = Math.round(30 + p*40);
+        const b = Math.round(50 + p*90);
+        ctx.fillStyle = `rgba(${r},${g},${b},0.22)`;
+        ctx.fillRect(px, py, 8, 8);
+      }
+    }
+  }
+
+  function drawPlot(state, z, p, pMinusY, grad){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    const X=state.X, W=state.W, y=state.y, pad=50, w=canvas.width, h=canvas.height, cx=w/2, cy=h/2;
+    const values=[...X.flat(), ...W.flat(), grad[0][0], grad[1][0]];
+    let maxAbs=Math.max(3, ...values.map(v=>Math.abs(v))) + 1.0;
+    const sx=x=>cx+(x/maxAbs)*(w/2-pad), sy=yv=>cy-(yv/maxAbs)*(h/2-pad);
+
+    drawBackground(sx, sy, maxAbs, W);
+
+    ctx.strokeStyle='rgba(148,163,184,.22)'; ctx.lineWidth=1;
+    for(let g=-Math.floor(maxAbs); g<=Math.floor(maxAbs); g++){
+      ctx.beginPath(); ctx.moveTo(sx(g),pad); ctx.lineTo(sx(g),h-pad); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(pad,sy(g)); ctx.lineTo(w-pad,sy(g)); ctx.stroke();
+    }
+    ctx.strokeStyle='rgba(229,231,235,.8)'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(pad,cy); ctx.lineTo(w-pad,cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx,pad); ctx.lineTo(cx,h-pad); ctx.stroke();
+
+    ctx.fillStyle='#94a3b8'; ctx.font='14px Arial';
+    ctx.fillText('feature 1', w-110, cy-10); ctx.fillText('feature 2', cx+10, 22);
+
+    function arrow(x,y,color,label,width){
+      width = width || 4;
+      ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=width;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(sx(x),sy(y)); ctx.stroke();
+      const ex=sx(x), ey=sy(y), ang=Math.atan2(ey-cy, ex-cx), ah=12;
+      ctx.beginPath(); ctx.moveTo(ex,ey);
+      ctx.lineTo(ex-ah*Math.cos(ang-Math.PI/6), ey-ah*Math.sin(ang-Math.PI/6));
+      ctx.lineTo(ex-ah*Math.cos(ang+Math.PI/6), ey-ah*Math.sin(ang+Math.PI/6));
+      ctx.closePath(); ctx.fill();
+      ctx.font='bold 15px Arial'; ctx.fillText(label, ex+8, ey-8);
+    }
+
+    if (Math.abs(W[1][0]) > 0.0001) {
+      const xA = -maxAbs, yA = -(W[0][0]/W[1][0]) * xA;
+      const xB =  maxAbs, yB = -(W[0][0]/W[1][0]) * xB;
+      ctx.setLineDash([8,8]);
+      ctx.strokeStyle='rgba(250,204,21,.85)';
+      ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(sx(xA), sy(yA)); ctx.lineTo(sx(xB), sy(yB)); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle='#facc15'; ctx.font='14px Arial';
+      ctx.fillText('decision boundary: x · W = 0', 18, 26);
+    }
+
+    arrow(W[0][0],W[1][0],'#f97316','W',4);
+    arrow(grad[0][0],grad[1][0],'#38bdf8','∇L',3);
+
+    for(let i=0;i<2;i++){
+      const px=sx(X[i][0]), py=sy(X[i][1]);
+      const color = y[i][0] === 1 ? '#f472b6' : '#22c55e';
+      ctx.fillStyle=color;
+      ctx.beginPath(); ctx.arc(px,py,9,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,.9)';
+      ctx.lineWidth=2; ctx.stroke();
+
+      ctx.fillStyle=color; ctx.font='bold 14px Arial';
+      ctx.fillText(`x${i+1}`, px+10, py-12);
+
+      ctx.fillStyle='#e5e7eb'; ctx.font='13px Arial';
+      ctx.fillText(`z=${fmt(z[i][0])}, p=${fmt(p[i][0])}`, px+10, py+8);
+      ctx.fillText(`y=${fmt(y[i][0])}, p-y=${fmt(pMinusY[i][0])}`, px+10, py+26);
+    }
+
+    ctx.fillStyle='#94a3b8'; ctx.font='14px Arial';
+    ctx.fillText('Background shading shows class-1 probability after sigmoid', 18, h-48);
+    ctx.fillText('The matrix multiplication creates logits for the whole batch at once', 18, h-28);
+  }
+
+  function update(step){
+    step = step || 1;
+    ids.forEach(id => valEls[id].textContent = parseFloat(els[id].value).toString());
+    valEls.lr.textContent = fmt(parseFloat(els.lr.value));
+
+    const state=getState();
+    const z = mmul(state.X, state.W);
+    const p = applySigmoid(z);
+    const pMinusY = sub(p, state.y);
+    const loss = logLoss(p, state.y);
+    const grad = gradient(state.X, pMinusY);
+
+    document.getElementById('Xmat').textContent=matToStr(state.X);
+    document.getElementById('Wmat').textContent=matToStr(state.W);
+    document.getElementById('Zmat').textContent=matToStr(z);
+    document.getElementById('Pmat').textContent=matToStr(p);
+    document.getElementById('Ymat').textContent=matToStr(state.y);
+
+    document.getElementById('p1').textContent=fmt(p[0][0]);
+    document.getElementById('p2').textContent=fmt(p[1][0]);
+    document.getElementById('c1').textContent=(p[0][0] >= 0.5 ? '1' : '0');
+    document.getElementById('c2').textContent=(p[1][0] >= 0.5 ? '1' : '0');
+    document.getElementById('lossVal').textContent=fmt(loss);
+    document.getElementById('gvec').textContent=`[${fmt(grad[0][0])}, ${fmt(grad[1][0])}]`;
+
+    document.getElementById('eqs').textContent =
+`Forward pass:
+z = XW
+
+Numerically:
+z₁ = (${fmt(state.X[0][0])} × ${fmt(state.W[0][0])}) + (${fmt(state.X[0][1])} × ${fmt(state.W[1][0])}) = ${fmt(z[0][0])}
+z₂ = (${fmt(state.X[1][0])} × ${fmt(state.W[0][0])}) + (${fmt(state.X[1][1])} × ${fmt(state.W[1][0])}) = ${fmt(z[1][0])}
+
+Sigmoid:
+p = σ(z)
+
+Probabilities:
+p₁ = σ(${fmt(z[0][0])}) = ${fmt(p[0][0])}
+p₂ = σ(${fmt(z[1][0])}) = ${fmt(p[1][0])}
+
+Error signal:
+p - y = [${fmt(pMinusY[0][0])}, ${fmt(pMinusY[1][0])}]ᵀ
+
+Binary cross-entropy:
+L = mean( -y log(p) - (1-y) log(1-p) ) = ${fmt(loss)}
+
+Gradient:
+∇L = (1/n) Xᵀ(p-y) = [${fmt(grad[0][0])}, ${fmt(grad[1][0])}]ᵀ
+
+Weight update:
+W_new = W - η∇L
+      = [${fmt(state.W[0][0])}, ${fmt(state.W[1][0])}]ᵀ - ${fmt(state.lr)} × [${fmt(grad[0][0])}, ${fmt(grad[1][0])}]ᵀ`;
+
+    drawPlot(state, z, p, pMinusY, grad);
+    setActiveStep(step);
+  }
+
+  function runOneStep(){
+    const state=getState();
+    const z = mmul(state.X, state.W);
+    const p = applySigmoid(z);
+    const pMinusY = sub(p, state.y);
+    const grad = gradient(state.X, pMinusY);
+
+    setActiveStep(1); pulse('Zmat');
+    setTimeout(()=>{ setActiveStep(2); pulse('Pmat'); }, 250);
+    setTimeout(()=>{ setActiveStep(3); pulse('Ymat'); }, 500);
+    setTimeout(()=>{ setActiveStep(4); }, 750);
+    setTimeout(()=>{
+      els.w1.value = (parseFloat(els.w1.value) - state.lr * grad[0][0]).toFixed(2);
+      els.w2.value = (parseFloat(els.w2.value) - state.lr * grad[1][0]).toFixed(2);
+      pulse('Wmat'); update(5);
+    }, 1050);
+  }
+
+  ids.forEach(id => els[id].addEventListener('input', ()=>update(1)));
+  document.getElementById('stepBtn').addEventListener('click', runOneStep);
+  document.getElementById('resetBtn').addEventListener('click', ()=>{
+    Object.keys(defaults).forEach(k => els[k].value = defaults[k]);
+    update(1);
+  });
+
+  update(1);
+});
+</script>
+</body>
+</html>
